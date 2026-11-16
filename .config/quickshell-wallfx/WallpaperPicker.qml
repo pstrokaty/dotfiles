@@ -205,6 +205,31 @@ Scope {
 
             MouseArea { anchors.fill: parent; z: -1; onClicked: root.open = false }
 
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: carousel.verticalCenter
+                height: carousel.height + 48
+                color: "#73000000"
+                z: -0.5
+
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: 1
+                    color: "#26ffffff"
+                }
+
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: 1
+                    color: "#26ffffff"
+                }
+            }
+
             ListView {
                 id: carousel
                 anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; verticalCenterOffset: 12 }

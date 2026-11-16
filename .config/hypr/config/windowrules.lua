@@ -51,7 +51,7 @@ hl.window_rule({ match = { class = "^(.*[Ll]auncher.*)$" }, float = true, monito
 hl.window_rule({ match = { class = "^(vesktop|discord)$" }, monitor = PRIMARY_MONITOR })
 hl.window_rule({ match = { class = "^(.*[Cc]alc.*)$" }, float = true, size = { "max(monitor_w, monitor_h)*0.17", "min(monitor_w, monitor_h)*0.43" } })
 hl.window_rule({ match = { class = "^(org\\.kde\\.keditfiletype)$" }, float = true })
-hl.window_rule({ match = { class = "^(org\\.kde\\.ark)$" }, size = { "max(monitor_w, monitor_h)*0.40", "min(monitor_w, monitor_h)*0.40" } })
+hl.window_rule({ match = { class = "^(org\\.kde\\.ark)$" }, float = true, size = { "max(monitor_w, monitor_h)*0.40", "min(monitor_w, monitor_h)*0.40" } })
 hl.window_rule({ match = { class = "^(.*swash)$", title = "^(Swash)$" }, min_size = { "max(monitor_w, monitor_h)*0.35", "min(monitor_w, monitor_h)*0.35" }, float = true })
 hl.window_rule({ match = { class = "^(dev\\.)?(noctalia\\.Noctalia(\\.Settings)?)$" }, float = true, size = { "monitor_w*0.70", "monitor_h*0.70" } })
 hl.window_rule({
@@ -135,4 +135,14 @@ hl.layer_rule({
   ignore_alpha = 0.5,
   blur = true,
   blur_popups = true,
+})
+
+-- Quickshell Wallpaper layer rule
+hl.layer_rule({
+  name = "quickshell-wallpaper",
+  match = {
+    namespace = "^quickshell:wallpaper$",
+  },
+  blur = true,
+  ignore_alpha = 0.2,
 })
