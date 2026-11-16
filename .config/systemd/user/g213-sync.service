@@ -1,0 +1,9 @@
+[Unit]
+Description=Sync Logitech G213 colors with Noctalia theme
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/g213-sync-colors
+
+[Install]
+WantedBy=g213-sync.path

@@ -22,5 +22,3 @@ LINE=""
 read -r KIND FIELD LINE < <(wallfx elige "$NEW" 2>/dev/null | tail -n 1) || true
 
 qs -p /home/pstrokaty/.config/quickshell-wallfx ipc call wallfx play "$OLD" "$NEW" "$KIND" "$FIELD" "$LINE" "$SPAN"
-
-nohup bash -c "sleep 0.9; \"$HOME/.local/bin/g213-sync-colors\"" </dev/null >/dev/null 2>&1 &

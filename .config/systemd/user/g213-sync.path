@@ -1,0 +1,8 @@
+[Unit]
+Description=Monitor changes to kitty theme and trigger g213-sync-colors
+
+[Path]
+PathChanged=%h/.config/kitty/themes/noctalia.conf
+
+[Install]
+WantedBy=graphical-session.target

@@ -25,3 +25,9 @@
 - Lua syntax: `luac -p ~/.config/hypr/config/*.lua`
 - QML check: `qmllint ~/.config/quickshell-wallfx/*.qml`
 - Shader compiler: `/usr/lib/qt6/bin/qsb`
+
+## OpenRGB Synchronization Path
+- **Noctalia Palette:** Changes in the Noctalia theme colors are detected by systemd.path.
+- **systemd.path:** Monitors changes to `~/.config/kitty/themes/noctalia.conf`.
+- **g213-sync-colors:** Reads the new colors and updates the OpenRGB profile `NoctaliaSync.json`.
+- **openrgb --server:** Loads the updated profile using the OpenRGB SDK.

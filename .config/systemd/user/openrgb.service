@@ -1,0 +1,10 @@
+[Unit]
+Description=OpenRGB Server
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/openrgb --server --noautoconnect
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
