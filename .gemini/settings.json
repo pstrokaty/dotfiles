@@ -1,0 +1,9 @@
+{
+  "tools": {
+    "exclude": [
+      "replace",
+      "run_shell_command",
+      "write_file"
+    ]
+  }
+}

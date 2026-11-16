@@ -1,0 +1,8 @@
+.DS_Store
+*.bak
+*.tmp
+__pycache__/
+*.pyc
+.gemini/oauth_creds.json
+.gemini/google_accounts.json
+.gemini/tmp/

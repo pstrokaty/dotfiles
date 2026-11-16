@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+NAME="${1:-NoctaliaSync}"
+STATE="$HOME/.local/state/noctalia/openrgb-sync"
+mkdir -p "$(dirname "$STATE")"
+
+if [ "$NAME" = "NoctaliaSync" ]; then
+    echo "1" > "$STATE"
+    exec "$HOME/.local/bin/g213-sync-colors"
+else
+    echo "0" > "$STATE"
+    openrgb --client 127.0.0.1:6742 -p "$NAME" >/dev/null 2>&1 || true
+fi

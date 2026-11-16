@@ -1,0 +1,9 @@
+hyprmod
+lib32-vkbasalt
+logiops
+python-pywalfox
+spicetify-cli
+spotify
+subliminal
+ttf-ms-fonts
+vkbasalt

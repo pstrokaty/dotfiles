@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+import json, os, re, subprocess, pathlib
+
+home = pathlib.Path.home()
+conf = home / ".config/kitty/themes/noctalia.conf"
+profiles_dir = home / ".config/OpenRGB/profiles"
+base_profile = profiles_dir / "OFF.json"
+target_profile = profiles_dir / "NoctaliaSync.json"
+state_file = home / ".local/state/noctalia/openrgb-sync"
+
+if not state_file.exists():
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    state_file.write_text("1", encoding="utf-8")
+
+colors = {}
+if conf.exists():
+    for line in conf.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^(color\d+)\s+#([0-9a-fA-F]{6})", line.strip())
+        if m:
+            colors[m.group(1)] = m.group(2)
+
+hex_list = [
+    colors.get("color2", "7AA2F7"),
+    colors.get("color4", "F7768E"),
+    colors.get("color6", "E0AF68"),
+    colors.get("color10", "9ECE6A"),
+    colors.get("color14", "BB9AF7"),
+]
+
+def hex_to_bgr_int(h: str) -> int:
+    r = int(h[0:2], 16)
+    g = int(h[2:4], 16)
+    b = int(h[4:6], 16)
+    return (b << 16) | (g << 8) | r
+
+bgr_list = [hex_to_bgr_int(h) for h in hex_list]
+led_values = [bgr_list[0]] + bgr_list
+
+source = target_profile if target_profile.exists() else base_profile
+if source.exists():
+    data = json.loads(source.read_text(encoding="utf-8"))
+    data["profile_name"] = "NoctaliaSync"
+    for ctrl in data.get("controllers", []):
+        if "G213" in ctrl.get("name", ""):
+            ctrl["active_mode"] = 0
+            ctrl["colors"] = led_values
+            break
+    tmp_file = target_profile.with_suffix(".json.tmp")
+    tmp_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
+    os.replace(tmp_file, target_profile)
+
+if state_file.read_text(encoding="utf-8").strip() == "1":
+    running = subprocess.run(["pgrep", "-x", "openrgb"], stdout=subprocess.DEVNULL).returncode == 0
+    if running:
+        subprocess.run(
+            ["openrgb", "--client", "127.0.0.1:6742", "-p", "NoctaliaSync"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
