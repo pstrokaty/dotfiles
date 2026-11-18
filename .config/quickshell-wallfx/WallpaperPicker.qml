@@ -22,7 +22,8 @@ Scope {
     function activeModeObj(wp) { const l = root.modesForWall(wp); if (l && l.length > 0) { const i = ((root.g213Mode % l.length) + l.length) % l.length; return l[i] } return { name: "Accent & Glow", colors: ["#ea7761", "#ff856e", "#e84d30", "#ffc043", "#f09e8e"] } }
     readonly property var activeG213Colors: (g213Modes.length > 0 && g213Mode >= 0 && g213Mode < g213Modes.length) ? g213Modes[g213Mode].colors : ["#ea7761", "#ff856e", "#e84d30", "#ffc043", "#f09e8e"]
     readonly property string activeG213Name: (g213Modes.length > 0 && g213Mode >= 0 && g213Mode < g213Modes.length) ? g213Modes[g213Mode].name : "Accent & Glow"
-    function cycleG213Mode(delta) { const l = root.modesForWall(root.centeredWallPath); const n = (l && l.length > 0) ? l.length : 6; root.g213Mode = (root.g213Mode + delta + n) % n; const cmd = [root.home + "/.local/bin/g213-sync-colors", "--mode", String(root.g213Mode)]; if (root.centeredWallPath) { cmd.push("--image"); cmd.push(root.centeredWallPath) } Quickshell.execDetached(cmd) }
+    function previewCenteredG213() { const cmd = [root.home + "/.local/bin/g213-sync-colors", "--mode", String(root.g213Mode)]; if (root.centeredWallPath) { cmd.push("--image"); cmd.push(root.centeredWallPath) } Quickshell.execDetached(cmd) }
+    function cycleG213Mode(delta) { const l = root.modesForWall(root.centeredWallPath); const n = (l && l.length > 0) ? l.length : 6; root.g213Mode = (root.g213Mode + delta + n) % n; g213PreviewTimer.stop(); root.previewCenteredG213() }
 
     function originalOf(thumbName) {
         return root.wallsDir + "/" + String(thumbName).replace(/\.jpg$/, "").replace(/__/g, "/")
@@ -115,6 +116,7 @@ Scope {
     Process { id: g213ModesProc; command: ["bash", "-c", '[ -f "$HOME/.cache/wallfx/g213-modes.json" ] || "$HOME/.local/bin/g213-sync-colors" --export-only; cat "$HOME/.cache/wallfx/g213-modes.json"']; stdout: StdioCollector { onStreamFinished: { try { const o = JSON.parse(text.trim()); if (o && Array.isArray(o.modes)) { root.g213Modes = o.modes; if (typeof o.active === "number") root.g213Mode = o.active } } catch (e) {} } } }
     function refreshG213Modes() { g213ModesProc.running = false; g213ModesProc.running = true; root.refreshG213Cache() }
     Timer { id: g213SyncTimer; interval: 750; repeat: false; onTriggered: root.refreshG213Modes() }
+    Timer { id: g213PreviewTimer; interval: 90; repeat: false; onTriggered: if (root.open) root.previewCenteredG213() }
 
     Component.onCompleted: {
         root.refreshThumbs()
@@ -203,7 +205,7 @@ Scope {
             Connections {
                 target: root
                 function onOpenChanged() {
-                    if (!root.open) { if (!root.appliedInSession) Quickshell.execDetached([root.home + "/.local/bin/g213-sync-colors"]); return }
+                    if (!root.open) { g213PreviewTimer.stop(); if (!root.appliedInSession) Quickshell.execDetached([root.home + "/.local/bin/g213-sync-colors"]); return }
                     root.appliedInSession = false
                     stage.forceActiveFocus()
                     root.refreshCurrentWall()
@@ -278,7 +280,7 @@ Scope {
                 boundsBehavior: Flickable.StopAtBounds
                 maximumFlickVelocity: 6000
 
-                onCurrentIndexChanged: if (root.open) root.ensureWallPalette(root.centeredWallPath)
+                onCurrentIndexChanged: if (root.open) { root.ensureWallPalette(root.centeredWallPath); g213PreviewTimer.restart() }
                 function applyCurrent() {
                     if (currentIndex < 0 || wallModel.count <= currentIndex) return
                     root.apply(wallModel.get(currentIndex, "fileName"))
