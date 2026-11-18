@@ -43,9 +43,9 @@ WALLS = os.path.join(HOME, "Pictures", "wallpapers")
 # The contagion grid: 240x135 cells, i.e. 8 px cells on a 1920x1080 screen:
 # chunky enough to read as pixel art at a glance (6 px looked like a soft
 # edge). The shader stretches it to whatever screen it is on.
-GW, GH = 240, 135
+GW, GH = 480, 270
 POOL = 12           # contagion maps in the pool; one is picked at random each time
-FIELD_MAX = 1280    # long side of an outline map (the shader interpolates it)
+FIELD_MAX = 3840    # long side of an outline map (the shader interpolates it)
 SD_RANGE = 16.0     # signed distance stored in +-16 map pixels around the outline
 WIDE = 48.0         # the wide outside distance (the glow), in map pixels
 
@@ -169,7 +169,7 @@ def contagion_map(seed):
     n = (0.52 * _value_noise(rng, w, h, rng.uniform(18, 65))
          + 0.30 * _value_noise(rng, w, h, rng.uniform(7, 20))
          + 0.18 * _value_noise(rng, w, h, rng.uniform(2, 6)))
-    cost = 0.12 + np.exp(rng.uniform(5, 9) * (n - 0.5)) + rng.uniform(0.15, 0.65) * rng.random((h, w))
+    cost = 0.12 + np.exp(rng.uniform(5, 9) * (n - 0.5)) + 0.02 * rng.random((h, w))
     cost = cost.ravel().tolist()
     seeds = []
     for _ in range(int(rng.integers(6, 13))):
@@ -234,6 +234,8 @@ _session = None
 
 
 def _cutout(im):
+    import onnxruntime as _ort
+    if hasattr(_ort, "preload_dlls"): _ort.preload_dlls()
     """The character's mask. On the Intel GPU through OpenVINO it takes ~3 s;
     on the CPU, 8-11 s. The first GPU run compiles the model (~40 s) and keeps
     it in ~/.cache/wallfx/ov, after which loading takes ~3 s. A machine without
@@ -244,7 +246,7 @@ def _cutout(im):
     if _session is None:
         try:
             _session = new_session("birefnet-general-lite", providers=[
-                ("CUDAExecutionProvider", {"device_type": "GPU", "cache_dir": os.path.join(CACHE, "ov")}),
+                "CUDAExecutionProvider",
                 "CPUExecutionProvider"])
         except Exception:
             _session = new_session("birefnet-general-lite", providers=["CPUExecutionProvider"])
@@ -295,7 +297,9 @@ def perfil(img, force=False):
         mask.save(mask_path)
     m = np.asarray(mask.resize(im.size), np.float32) / 255.0
     h, w = m.shape
-    b = (m > 0.5).astype(np.uint8)
+    b = (cv2.GaussianBlur(m, (0, 0), sigmaX=2.5) > 0.5).astype(np.uint8)
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    b = cv2.morphologyEx(cv2.morphologyEx(b, cv2.MORPH_CLOSE, k), cv2.MORPH_OPEN, k)
     # Specks of foreground: out. They would be drawn as dots all over the screen.
     n, lab, stats, _ = cv2.connectedComponentsWithStats(b, connectivity=8)
     keep = np.zeros(n, bool)

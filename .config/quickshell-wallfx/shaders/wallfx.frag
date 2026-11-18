@@ -97,27 +97,14 @@ vec3 contagion(vec2 uv) {
     float energy = sin(PI * t);
     float T = escena(t) * (1.0 + LIFE + 0.01) - 0.01;
     float s = surface(uv);
-    vec2 cell = floor(uv * vec2(fw, fh));
-    float a = arrivalAt(cell);
-    float flick = hash(cell);
     vec3 hot = mix(ember.rgb, vec3(1.0), 0.18);
-    vec3 c;
-    if (a > T) {
-        c = oldAt(uv);
-        // a spark: a lone cell just ahead of the front lights up for a moment
-        float ahead = a - T;
-        if (flick > 0.985 && ahead < 0.02)
-            c = mix(c, hot, (1.0 - ahead / 0.02) * 0.8 * glow * step(0.0, T));
-    } else {
-        c = texture(newTex, newUv(uv, 1.0 + 0.025 * (1.0 - escena(t)))).rgb;   // settles from a touch closer
-        bool edge = max(max(arrivalAt(cell + vec2(1.0, 0.0)), arrivalAt(cell - vec2(1.0, 0.0))),
-                        max(arrivalAt(cell + vec2(0.0, 1.0)), arrivalAt(cell - vec2(0.0, 1.0)))) > T;
-        float life = clamp((T - a) / LIFE, 0.0, 1.0);
-        float burn = (1.0 - life) * (1.0 - life) * (edge ? 1.0 : 0.55);
-        c = mix(c, hot, burn * (0.55 + 0.45 * flick) * 0.85 * glow);
-    }
-    // the thin glow riding the front, on both sides
-    return c + ember.rgb * 0.22 * glow * energy * exp(-abs(s - T) / 0.006);
+    vec3 oldC = oldAt(uv);
+    vec3 newC = texture(newTex, newUv(uv, 1.0 + 0.025 * (1.0 - escena(t)))).rgb;
+    float life = clamp((T - s) / LIFE, 0.0, 1.0);
+    float burn = (1.0 - life) * (1.0 - life) * smoothstep(T + 0.005, T - 0.015, s);
+    newC = mix(newC, hot, burn * 0.65 * glow);
+    float blend = 1.0 - smoothstep(T - 0.025, T + 0.025, s);
+    return mix(oldC, newC, blend) + ember.rgb * 0.22 * glow * energy * exp(-abs(s - T) / 0.012);
 }
 
 // ───────────────────────────── outline ─────────────────────────────
@@ -143,15 +130,10 @@ vec3 outline(vec2 uv) {
 
     // The same 4 px cells as the contagion. Each decides by its centre, so the
     // fronts are crisp and stepped; the silhouette itself stays smooth.
-    vec2 grid = vec2(sw, sh) / CELL;
-    vec2 cuv = (floor(uv * grid) + 0.5) / grid;
-
-    // The character fills in from its outline...
-    float Ti = escena((t - 0.32) / 0.32) * 1.02 - 0.01;   // once the line is (almost) drawn
-    vec3 cIn = texture(fieldTex, newUv(cuv, zCh)).g <= Ti ? texture(newTex, newUv(uv, zCh)).rgb : st;
-    // ...and then the world spreads out of it.
+    float Ti = escena((t - 0.32) / 0.32) * 1.02 - 0.01;
+    vec3 cIn = mix(st, texture(newTex, newUv(uv, zCh)).rgb, 1.0 - smoothstep(Ti - 0.03, Ti + 0.03, texture(fieldTex, newUv(uv, zCh)).g));
     float To = escena((t - 0.45) / 0.50) * 1.02 - 0.01;
-    vec3 cOut = surface(newUv(cuv, zBg)) <= To ? texture(newTex, newUv(uv, zBg)).rgb : st;
+    vec3 cOut = mix(st, texture(newTex, newUv(uv, zBg)).rgb, 1.0 - smoothstep(To - 0.025, To + 0.025, surface(newUv(uv, zBg))));
     vec3 c = mix(cOut, cIn, inside);
 
     // The line: thin and quiet, in the palette's lightest tone, drawn by two
