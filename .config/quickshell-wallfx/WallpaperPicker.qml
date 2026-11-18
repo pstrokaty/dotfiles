@@ -13,6 +13,16 @@ Scope {
     readonly property string wallsDir: home + "/Obrazy/Wallpapers"
     readonly property string thumbsDir: home + "/.cache/wallpaper-thumbs"
     property string currentWallPath: ""
+    property int g213Mode: 0
+    property var g213Modes: []
+    property var g213Cache: ({})
+    property bool appliedInSession: false
+    readonly property string centeredWallPath: (carousel.currentIndex >= 0 && carousel.currentIndex < wallModel.count) ? root.originalOf(wallModel.get(carousel.currentIndex, "fileName")) : root.currentWallPath
+    function modesForWall(wp) { return (wp && root.g213Cache && root.g213Cache[wp] && Array.isArray(root.g213Cache[wp].modes)) ? root.g213Cache[wp].modes : root.g213Modes }
+    function activeModeObj(wp) { const l = root.modesForWall(wp); if (l && l.length > 0) { const i = ((root.g213Mode % l.length) + l.length) % l.length; return l[i] } return { name: "Accent & Glow", colors: ["#ea7761", "#ff856e", "#e84d30", "#ffc043", "#f09e8e"] } }
+    readonly property var activeG213Colors: (g213Modes.length > 0 && g213Mode >= 0 && g213Mode < g213Modes.length) ? g213Modes[g213Mode].colors : ["#ea7761", "#ff856e", "#e84d30", "#ffc043", "#f09e8e"]
+    readonly property string activeG213Name: (g213Modes.length > 0 && g213Mode >= 0 && g213Mode < g213Modes.length) ? g213Modes[g213Mode].name : "Accent & Glow"
+    function cycleG213Mode(delta) { const l = root.modesForWall(root.centeredWallPath); const n = (l && l.length > 0) ? l.length : 6; root.g213Mode = (root.g213Mode + delta + n) % n; const cmd = [root.home + "/.local/bin/g213-sync-colors", "--mode", String(root.g213Mode)]; if (root.centeredWallPath) { cmd.push("--image"); cmd.push(root.centeredWallPath) } Quickshell.execDetached(cmd) }
 
     function originalOf(thumbName) {
         return root.wallsDir + "/" + String(thumbName).replace(/\.jpg$/, "").replace(/__/g, "/")
@@ -27,7 +37,9 @@ Scope {
     function applyPath(fullPath) {
         if (!fullPath) return
         root.currentWallPath = fullPath
+        root.appliedInSession = true
         Quickshell.execDetached([root.home + "/.config/quickshell-wallfx/set-wallpaper.sh", fullPath])
+        g213SyncTimer.restart()
     }
 
     function apply(thumbName) {
@@ -94,11 +106,20 @@ Scope {
         id: warmProc
         command: [root.home + "/.local/bin/wallfx", "warm", root.wallsDir + "/UltraDual"]
     }
-    function warmTransitions() { if (!warmProc.running) warmProc.running = true }
+    function warmTransitions() { if (!warmProc.running) warmProc.running = true; if (!g213WarmProc.running) g213WarmProc.running = true }
+    Process { id: g213WarmProc; command: [root.home + "/.local/bin/g213-sync-colors", "--warm", root.wallsDir]; onExited: root.refreshG213Cache() }
+    Process { id: g213CacheProc; command: ["bash", "-c", '[ -f "$HOME/.cache/wallfx/g213-cache.json" ] && cat "$HOME/.cache/wallfx/g213-cache.json" || echo "{}"']; stdout: StdioCollector { onStreamFinished: { try { const o = JSON.parse(text.trim()); if (o && typeof o === "object") root.g213Cache = o } catch (e) {} } } }
+    function refreshG213Cache() { g213CacheProc.running = false; g213CacheProc.running = true }
+    Process { id: g213SingleProc; property string targetWall: ""; command: [root.home + "/.local/bin/g213-sync-colors", "--export-only", "--image", targetWall]; onExited: root.refreshG213Cache() }
+    function ensureWallPalette(wp) { if (!wp || (root.g213Cache && root.g213Cache[wp]) || g213SingleProc.running) return; g213SingleProc.targetWall = wp; g213SingleProc.running = true }
+    Process { id: g213ModesProc; command: ["bash", "-c", '[ -f "$HOME/.cache/wallfx/g213-modes.json" ] || "$HOME/.local/bin/g213-sync-colors" --export-only; cat "$HOME/.cache/wallfx/g213-modes.json"']; stdout: StdioCollector { onStreamFinished: { try { const o = JSON.parse(text.trim()); if (o && Array.isArray(o.modes)) { root.g213Modes = o.modes; if (typeof o.active === "number") root.g213Mode = o.active } } catch (e) {} } } }
+    function refreshG213Modes() { g213ModesProc.running = false; g213ModesProc.running = true; root.refreshG213Cache() }
+    Timer { id: g213SyncTimer; interval: 750; repeat: false; onTriggered: root.refreshG213Modes() }
 
     Component.onCompleted: {
         root.refreshThumbs()
         root.refreshCurrentWall()
+        root.refreshG213Modes()
     }
 
     IpcHandler {
@@ -182,18 +203,22 @@ Scope {
             Connections {
                 target: root
                 function onOpenChanged() {
-                    if (!root.open) return
+                    if (!root.open) { if (!root.appliedInSession) Quickshell.execDetached([root.home + "/.local/bin/g213-sync-colors"]); return }
+                    root.appliedInSession = false
                     stage.forceActiveFocus()
                     root.refreshCurrentWall()
                     root.refreshThumbs()
                     root.warmTransitions()
                     root.syncToCurrent()
+                    root.refreshG213Modes()
                 }
             }
 
             Keys.onEscapePressed: root.open = false
             Keys.onLeftPressed:   carousel.decrementCurrentIndex()
             Keys.onRightPressed:  carousel.incrementCurrentIndex()
+            Keys.onUpPressed: (e) => { if ((e.modifiers & (Qt.MetaModifier | Qt.AltModifier)) === 0) { root.cycleG213Mode(-1); e.accepted = true } }
+            Keys.onDownPressed: (e) => { if ((e.modifiers & (Qt.MetaModifier | Qt.AltModifier)) === 0) { root.cycleG213Mode(1); e.accepted = true } }
             Keys.onReturnPressed: carousel.applyCurrent()
             Keys.onEnterPressed:  carousel.applyCurrent()
             WheelHandler {
@@ -253,6 +278,7 @@ Scope {
                 boundsBehavior: Flickable.StopAtBounds
                 maximumFlickVelocity: 6000
 
+                onCurrentIndexChanged: if (root.open) root.ensureWallPalette(root.centeredWallPath)
                 function applyCurrent() {
                     if (currentIndex < 0 || wallModel.count <= currentIndex) return
                     root.apply(wallModel.get(currentIndex, "fileName"))
@@ -262,6 +288,8 @@ Scope {
                     id: slot
                     width: carousel.slotW
                     height: carousel.height
+                    readonly property string wallPath: root.originalOf(model.fileName)
+                    readonly property var slotModeObj: root.activeModeObj(slot.wallPath)
                     readonly property real d: (x + width / 2 - (carousel.contentX + carousel.width / 2)) / carousel.slotW
                     readonly property real ad: Math.abs(d)
                     readonly property real sc: ad <= 1
@@ -302,6 +330,49 @@ Scope {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
                             onClicked: slot.ad < 0.5 ? carousel.applyCurrent() : (carousel.currentIndex = index)
+                        }
+                    }
+                    Item {
+                        id: zoneDock
+                        anchors.centerIn: parent
+                        width: carousel.iw
+                        height: carousel.ih
+                        scale: slot.sc
+                        readonly property real centerFocus: Math.max(0, 1.0 - slot.ad * 2.5)
+                        readonly property real zoneH: 18
+                        readonly property real zoneGap: 8
+                        readonly property real gapY: 12
+                        readonly property real zoneW: (carousel.iw - 4 * zoneGap) / 5
+                        opacity: centerFocus
+                        visible: centerFocus > 0.01
+                        Row {
+                            x: carousel.skew * (carousel.ih / 2 + zoneDock.gapY + zoneDock.zoneH / 2)
+                            y: carousel.ih + zoneDock.gapY
+                            spacing: zoneDock.zoneGap
+                            Repeater {
+                                model: 5
+                                Rectangle {
+                                    width: zoneDock.zoneW
+                                    height: zoneDock.zoneH
+                                    color: slot.slotModeObj.colors[index] || "#ea7761"
+                                    border.width: 1
+                                    border.color: Qt.rgba(1, 1, 1, 0.28)
+                                    transform: Matrix4x4 { matrix: Qt.matrix4x4(1, carousel.skew, 0, -carousel.skew * zoneDock.zoneH / 2, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1) }
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.cycleG213Mode(1) }
+                                }
+                            }
+                        }
+                        Text {
+                            x: carousel.skew * (carousel.ih / 2 + zoneDock.gapY + zoneDock.zoneH + 15)
+                            y: carousel.ih + zoneDock.gapY + zoneDock.zoneH + 7
+                            width: carousel.iw
+                            horizontalAlignment: Text.AlignHCenter
+                            text: (root.g213Mode + 1) + "/" + Math.max(1, root.modesForWall(slot.wallPath).length) + "  ·  " + slot.slotModeObj.name
+                            color: "#e6e9ef"
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
+                            opacity: 0.9
                         }
                     }
                 }
