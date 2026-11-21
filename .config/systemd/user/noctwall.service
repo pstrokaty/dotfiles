@@ -1,12 +1,12 @@
 [Unit]
-Description=Quickshell WallFX Shader Transitions & Wallpaper Picker
+Description=NoctWall Shader Transitions, Wallpaper Picker & Plugins
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
 Type=simple
 Environment="PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/bin"
-ExecStart=/usr/bin/qs -p %h/.config/quickshell-wallfx
+ExecStart=/usr/bin/qs -p %h/projects/noctwall-ecosystem/noctwall
 Restart=on-failure
 RestartSec=1
 
