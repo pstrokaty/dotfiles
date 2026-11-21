@@ -124,10 +124,10 @@ hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd(noctCall .. "screenshot-fullscree
 
 -- Theming and Wallpaper
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd(noctCall .. "panel-toggle wallpaper"))
-hl.bind(mainMod .. " + ALT + Up",    hl.dsp.exec_cmd("qs -p /home/pstrokaty/projects/noctwall-ecosystem/noctwall ipc call picker toggle"))
-hl.bind(mainMod .. " + ALT + Left",  hl.dsp.exec_cmd("qs -p /home/pstrokaty/projects/noctwall-ecosystem/noctwall ipc call picker prev"))
-hl.bind(mainMod .. " + ALT + Right", hl.dsp.exec_cmd("qs -p /home/pstrokaty/projects/noctwall-ecosystem/noctwall ipc call picker next"))
-hl.bind(mainMod .. " + ALT + Down",  hl.dsp.exec_cmd("qs -p /home/pstrokaty/projects/noctwall-ecosystem/noctwall ipc call picker random"))
+hl.bind(mainMod .. " + ALT + Up",    hl.dsp.exec_cmd("qs -p " .. os.getenv("HOME") .. "/.config/noctwall ipc call picker toggle"))
+hl.bind(mainMod .. " + ALT + Left",  hl.dsp.exec_cmd("qs -p " .. os.getenv("HOME") .. "/.config/noctwall ipc call picker prev"))
+hl.bind(mainMod .. " + ALT + Right", hl.dsp.exec_cmd("qs -p " .. os.getenv("HOME") .. "/.config/noctwall ipc call picker next"))
+hl.bind(mainMod .. " + ALT + Down",  hl.dsp.exec_cmd("qs -p " .. os.getenv("HOME") .. "/.config/noctwall ipc call picker random"))
 
 -- Clipboard
 hl.bind(mainMod .. " + V", hl.dsp.exec_cmd(noctCall .. "panel-toggle clipboard"))
